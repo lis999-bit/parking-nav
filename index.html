@@ -17,6 +17,8 @@
   .sub{background:#eef1f4;color:#1d2329;font-size:16px;font-weight:600}
   .note{font-size:12.5px;color:#8a949e;margin-top:14px;line-height:1.5}
   .err{color:#c0392b}
+  .walk{background:#e8f8ef;color:#0b7a3b;border-radius:12px;padding:12px 10px;margin:-8px 0 18px;font-size:15px;line-height:1.45}
+  .walk b{font-size:20px}
 </style>
 </head>
 <body>
@@ -24,6 +26,7 @@
   <div class="p">🅿️</div>
   <h1 id="name">주차 자리</h1>
   <div class="coord" id="coord"></div>
+  <div class="walk" id="walk" hidden></div>
   <a class="btn main" id="nav">네이버 지도 앱으로 길안내</a>
   <a class="btn sub" id="place">앱에서 위치만 보기</a>
   <a class="btn sub" id="web">웹 지도로 보기</a>
@@ -51,6 +54,23 @@
     document.getElementById('name').textContent = name;
     document.getElementById('coord').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
     document.title = name + ' 길안내';
+    var dlat = parseFloat(q.get('dlat')), dlng = parseFloat(q.get('dlng'));
+    if (dlat > 31 && dlat < 45 && dlng > 122 && dlng < 133) {
+      var R = 6371000, t = Math.PI / 180;
+      var a = Math.pow(Math.sin((dlat - lat) * t / 2), 2) +
+              Math.cos(lat * t) * Math.cos(dlat * t) * Math.pow(Math.sin((dlng - lng) * t / 2), 2);
+      var m = Math.round(2 * R * Math.asin(Math.sqrt(a)));
+      var mins = Math.max(1, Math.round(m * 1.3 / 70));
+      var dname = (q.get('dname') || '목적지').slice(0, 40);
+      var w = document.getElementById('walk');
+      w.hidden = false;
+      w.innerHTML = '';
+      w.appendChild(document.createTextNode(dname + '까지'));
+      w.appendChild(document.createElement('br'));
+      var b = document.createElement('b');
+      b.textContent = '약 ' + m + 'm · 걸어서 ' + mins + '분';
+      w.appendChild(b);
+    }
     document.getElementById('nav').href = link('navigation', 'dlat=' + lat + '&dlng=' + lng + '&dname=' + nm);
     document.getElementById('place').href = link('place', 'lat=' + lat + '&lng=' + lng + '&name=' + nm);
     document.getElementById('web').href = 'https://map.naver.com/?lng=' + lng + '&lat=' + lat + '&title=' + nm;
