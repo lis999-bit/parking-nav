@@ -2,79 +2,339 @@
 <html lang="ko">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>주차 자리로 길안내</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
+<title>주차찾기</title>
 <style>
-  *{box-sizing:border-box}
-  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
-       font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#f4f6f8;color:#1d2329;padding:20px}
-  .card{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:28px 22px;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center}
-  .p{font-size:44px;line-height:1}
-  h1{font-size:22px;margin:12px 0 6px}
-  .coord{font-size:13px;color:#6b7680;margin-bottom:22px}
-  .btn{display:block;width:100%;padding:17px 0;border-radius:14px;font-size:18px;font-weight:700;text-decoration:none;margin-bottom:10px}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%}
+  body{font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#1d2329;background:#f4f6f8}
+  button,input{font-family:inherit}
+  #finder{display:flex;flex-direction:column;height:100%}
+  header{padding:10px 10px 8px;background:#fff;box-shadow:0 1px 0 #e5e8eb;z-index:3}
+  #sf{display:flex;gap:6px}
+  #q{flex:1;min-width:0;font-size:16px;padding:12px 12px;border:1.5px solid #d5dbe0;border-radius:12px;outline:none}
+  #q:focus{border-color:#03c75a}
+  #sf button{font-size:16px;font-weight:700;padding:0 16px;border:none;border-radius:12px;background:#03c75a;color:#fff}
+  #mapWrap{position:relative;height:48vh;min-height:260px;flex:none}
+  #map{width:100%;height:100%}
+  .mapBtns{position:absolute;right:8px;top:8px;z-index:2;display:flex;flex-direction:column;gap:6px}
+  .mapBtns button{font-size:13px;font-weight:700;padding:8px 10px;border:none;border-radius:10px;background:#fff;color:#1d2329;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .hint{position:absolute;left:8px;bottom:8px;right:8px;z-index:2;background:rgba(29,35,41,.82);color:#fff;font-size:13px;padding:8px 10px;border-radius:10px;text-align:center;pointer-events:none}
+  #sheet{flex:1;overflow-y:auto;background:#fff;padding:12px 14px 28px}
+  h3{font-size:15px;margin:14px 0 6px}
+  .muted{color:#7a858f;font-size:14px;margin:10px 0}
+  .tip{background:#fff7e0;color:#7a5a00;border-radius:10px;padding:9px 11px;font-size:13.5px;margin:8px 0 4px;line-height:1.45}
+  .dest b{display:block;font-size:18px}
+  .dest span{font-size:13px;color:#7a858f}
+  .item{display:flex;width:100%;text-align:left;align-items:center;gap:10px;border:none;background:#f6f8fa;border-radius:12px;padding:11px 12px;margin:6px 0;font-size:15px;color:#1d2329}
+  .item .ic{font-size:20px;flex:none}
+  .item .tx{flex:1;min-width:0}
+  .item .tx b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .item .tx span{font-size:12.5px;color:#6b7680}
+  .item .dist{flex:none;font-weight:700;color:#03a24b;font-size:14px}
+  .btn{display:block;width:100%;padding:15px 0;border-radius:14px;font-size:17px;font-weight:700;text-decoration:none;margin-top:9px;border:none;text-align:center;cursor:pointer}
   .main{background:#03c75a;color:#fff}
-  .sub{background:#eef1f4;color:#1d2329;font-size:16px;font-weight:600}
-  .note{font-size:12.5px;color:#8a949e;margin-top:14px;line-height:1.5}
-  .err{color:#c0392b}
-  .walk{background:#e8f8ef;color:#0b7a3b;border-radius:12px;padding:12px 10px;margin:-8px 0 18px;font-size:15px;line-height:1.45}
+  .sub{background:#eef1f4;color:#1d2329;font-size:15.5px;font-weight:600}
+  .ghost{background:none;color:#6b7680;font-size:14.5px;font-weight:600}
+  .walk{background:#e8f8ef;color:#0b7a3b;border-radius:12px;padding:11px 12px;margin:10px 0 2px;font-size:14.5px;line-height:1.45;text-align:center}
   .walk b{font-size:20px}
+  .pickName{font-size:18px;font-weight:800}
+  .nameIn{width:100%;font-size:15px;padding:10px 11px;border:1.5px solid #d5dbe0;border-radius:10px;margin-top:9px}
+  .pin{font-size:26px;line-height:1;transform:translateY(-50%);filter:drop-shadow(0 1px 2px rgba(0,0,0,.5))}
+  .lot{background:#2a6ef0;color:#fff;font-weight:800;font-size:13px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer}
+  .star{font-size:22px;cursor:pointer;filter:drop-shadow(0 1px 2px rgba(0,0,0,.6))}
+  #rvModal{position:fixed;inset:0;z-index:10;background:#000;display:flex;flex-direction:column}
+  #rvModal[hidden]{display:none}
+  #rv{flex:1}
+  .rvBar{display:flex;align-items:center;gap:8px;padding:10px;background:#111;color:#ddd;font-size:13px}
+  .rvBar span{flex:1}
+  .rvBar button{font-size:15px;font-weight:700;padding:10px 18px;border:none;border-radius:10px;background:#fff}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1d2329;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:20}
+  /* 길안내 전용 화면 (lat/lng 링크로 열었을 때) */
+  #navMode{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
+  #navMode[hidden]{display:none}
+  .card{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:26px 22px;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center}
+  .card .p{font-size:44px}
+  .card h1{font-size:22px;margin:12px 0 4px}
+  .card .coord{font-size:13px;color:#6b7680}
 </style>
 </head>
 <body>
-<div class="card" id="card">
-  <div class="p">🅿️</div>
-  <h1 id="name">주차 자리</h1>
-  <div class="coord" id="coord"></div>
-  <div class="walk" id="walk" hidden></div>
-  <a class="btn main" id="nav">네이버 지도 앱으로 길안내</a>
-  <a class="btn sub" id="place">앱에서 위치만 보기</a>
-  <a class="btn sub" id="web">웹 지도로 보기</a>
-  <div class="note">버튼을 누르면 네이버 지도 앱이 열리고, 이 좌표로 바로 내비가 시작돼요.<br>앱이 없으면 설치 화면으로 이동해요.</div>
+<div id="finder" hidden>
+  <header>
+    <form id="sf"><input id="q" type="search" placeholder="목적지 검색 (예: 광양읍 다이소)" autocomplete="off"><button type="submit">검색</button></form>
+  </header>
+  <div id="mapWrap">
+    <div id="map"></div>
+    <div class="mapBtns"><button type="button" id="btnType">일반지도</button><button type="button" id="btnRv">로드뷰</button></div>
+    <div class="hint" id="hint" hidden>차들이 서 있는 곳을 지도에서 톡 눌러 보세요</div>
+  </div>
+  <section id="sheet"></section>
 </div>
+
+<div id="navMode" hidden></div>
+
+<div id="rvModal" hidden>
+  <div id="rv"></div>
+  <div class="rvBar"><span id="rvMsg">손가락으로 끌어서 주변을 둘러보세요</span><button type="button" id="rvClose">닫기</button></div>
+</div>
+
 <script>
-  var q = new URLSearchParams(location.search);
-  var lat = parseFloat(q.get('lat')), lng = parseFloat(q.get('lng'));
-  var name = (q.get('name') || '주차 자리').slice(0, 40);
-  var card = document.getElementById('card');
-  if (!(lat > 31 && lat < 45 && lng > 122 && lng < 133)) {
-    card.innerHTML = '<div class="p">⚠️</div><h1 class="err">좌표가 없어요</h1><div class="coord">?lat=위도&lng=경도&name=이름 형식으로 열어 주세요.</div>';
-  } else {
-    var app = encodeURIComponent(location.origin + location.pathname);
-    var nm = encodeURIComponent(name);
-    var isAndroid = /Android/i.test(navigator.userAgent);
-    function link(path, params) {
-      var body = path + '?' + params + '&appname=' + app;
-      if (isAndroid) {
-        return 'intent://' + body + '#Intent;scheme=nmap;action=android.intent.action.VIEW;' +
-               'category=android.intent.category.BROWSABLE;package=com.nhn.android.nmap;end';
-      }
-      return 'nmap://' + body;
-    }
-    document.getElementById('name').textContent = name;
-    document.getElementById('coord').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
-    document.title = name + ' 길안내';
-    var dlat = parseFloat(q.get('dlat')), dlng = parseFloat(q.get('dlng'));
-    if (dlat > 31 && dlat < 45 && dlng > 122 && dlng < 133) {
-      var R = 6371000, t = Math.PI / 180;
-      var a = Math.pow(Math.sin((dlat - lat) * t / 2), 2) +
-              Math.cos(lat * t) * Math.cos(dlat * t) * Math.pow(Math.sin((dlng - lng) * t / 2), 2);
-      var m = Math.round(2 * R * Math.asin(Math.sqrt(a)));
-      var mins = Math.max(1, Math.round(m * 1.3 / 70));
-      var dname = (q.get('dname') || '목적지').slice(0, 40);
-      var w = document.getElementById('walk');
-      w.hidden = false;
-      w.innerHTML = '';
-      w.appendChild(document.createTextNode(dname + '까지'));
-      w.appendChild(document.createElement('br'));
-      var b = document.createElement('b');
-      b.textContent = '약 ' + m + 'm · 걸어서 ' + mins + '분';
-      w.appendChild(b);
-    }
-    document.getElementById('nav').href = link('navigation', 'dlat=' + lat + '&dlng=' + lng + '&dname=' + nm);
-    document.getElementById('place').href = link('place', 'lat=' + lat + '&lng=' + lng + '&name=' + nm);
-    document.getElementById('web').href = 'https://map.naver.com/?lng=' + lng + '&lat=' + lat + '&title=' + nm;
+var KEY = 'c2ae7f830711390c16a66bcacab1202f';
+var $ = function (id) { return document.getElementById(id); };
+var params = new URLSearchParams(location.search);
+var isAndroid = /Android/i.test(navigator.userAgent);
+
+function valid(lat, lng) { return lat > 31 && lat < 45 && lng > 122 && lng < 133; }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function hav(a1, o1, a2, o2) {
+  var t = Math.PI / 180, R = 6371000;
+  var a = Math.pow(Math.sin((a2 - a1) * t / 2), 2) + Math.cos(a1 * t) * Math.cos(a2 * t) * Math.pow(Math.sin((o2 - o1) * t / 2), 2);
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+function walkText(m) { return '약 ' + m + 'm · 걸어서 ' + Math.max(1, Math.round(m * 1.3 / 70)) + '분'; }
+function nmap(path, p) {
+  var body = path + '?' + p + '&appname=' + encodeURIComponent(location.origin + location.pathname);
+  return isAndroid
+    ? 'intent://' + body + '#Intent;scheme=nmap;action=android.intent.action.VIEW;category=android.intent.category.BROWSABLE;package=com.nhn.android.nmap;end'
+    : 'nmap://' + body;
+}
+function navLink(lat, lng, name) { return nmap('navigation', 'dlat=' + lat + '&dlng=' + lng + '&dname=' + encodeURIComponent(name)); }
+function toast(t) {
+  var d = document.createElement('div'); d.className = 'toast'; d.textContent = t;
+  document.body.appendChild(d); setTimeout(function () { d.remove(); }, 1800);
+}
+
+/* ---------- 저장한 자리 (이 폰의 브라우저에만 저장) ---------- */
+var SKEY = 'pn-spots';
+function loadSpots() { try { return JSON.parse(localStorage.getItem(SKEY) || '[]'); } catch (e) { return []; } }
+function saveSpots(a) { try { localStorage.setItem(SKEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
+
+/* ---------- 길안내 전용 화면: ?lat=&lng=&name=(&dlat=&dlng=&dname=) ---------- */
+var plat = parseFloat(params.get('lat')), plng = parseFloat(params.get('lng'));
+if (valid(plat, plng)) {
+  var pname = (params.get('name') || '주차 자리').slice(0, 40);
+  var h = '<div class="card"><div class="p">🅿️</div><h1>' + esc(pname) + '</h1><div class="coord">' + plat.toFixed(6) + ', ' + plng.toFixed(6) + '</div>';
+  var dlat = parseFloat(params.get('dlat')), dlng = parseFloat(params.get('dlng'));
+  if (valid(dlat, dlng)) {
+    var dn = (params.get('dname') || '목적지').slice(0, 40);
+    h += '<div class="walk">' + esc(dn) + '까지<br><b>' + walkText(Math.round(hav(plat, plng, dlat, dlng))) + '</b></div>';
   }
+  h += '<a class="btn main" href="' + esc(navLink(plat, plng, pname)) + '">네이버 지도 앱으로 길안내</a>' +
+       '<a class="btn sub" href="' + esc(nmap('place', 'lat=' + plat + '&lng=' + plng + '&name=' + encodeURIComponent(pname))) + '">앱에서 위치만 보기</a>' +
+       '<a class="btn ghost" href="' + esc(location.pathname) + '">🔍 다른 목적지 찾기</a></div>';
+  $('navMode').innerHTML = h;
+  $('navMode').hidden = false;
+} else {
+  $('finder').hidden = false;
+  var s = document.createElement('script');
+  s.src = 'https://dapi.kakao.com/v2/maps/sdk.js?appkey=' + KEY + '&libraries=services&autoload=false';
+  s.onload = function () { kakao.maps.load(init); };
+  s.onerror = function () { setSheet('<p class="muted">지도를 불러오지 못했어요. 인터넷 연결이나 카카오 키 설정을 확인해 주세요.</p>'); };
+  document.head.appendChild(s);
+}
+
+/* ---------- 주차찾기 ---------- */
+var map, places, rvClient, rv, dest = null, pick = null;
+var overlays = [], destMarker = null, circle = null, pickOverlay = null;
+var listItems = [];
+
+function setSheet(html) { $('sheet').innerHTML = html; $('sheet').scrollTop = 0; }
+
+function init() {
+  map = new kakao.maps.Map($('map'), { center: new kakao.maps.LatLng(34.9790, 127.5835), level: 5 });
+  places = new kakao.maps.services.Places();
+  rvClient = new kakao.maps.RoadviewClient();
+  kakao.maps.event.addListener(map, 'click', function (e) {
+    if (!dest) return;
+    choose({ lat: e.latLng.getLat(), lng: e.latLng.getLng(), name: dest.name + ' 근처 주차', kind: 'tap' });
+  });
+  $('sf').addEventListener('submit', function (e) {
+    e.preventDefault();
+    var t = $('q').value.trim(); if (!t) return;
+    $('q').blur(); search(t);
+  });
+  $('btnType').onclick = toggleType;
+  $('btnRv').onclick = function () { openRv(pick || dest); };
+  $('rvClose').onclick = function () { $('rvModal').hidden = true; };
+  var last = params.get('q');
+  if (last) { $('q').value = last; search(last); } else renderHome();
+}
+
+function renderHome() {
+  var spots = loadSpots();
+  var h = '<p class="tip">목적지를 검색하면 반경 100m 안의 주차장을 찾아 드려요. 위성사진에서 차들이 서 있는 곳을 눌러 그 자리로 바로 길안내할 수도 있어요.</p>';
+  if (spots.length) {
+    h += '<h3>⭐ 내가 저장한 자리</h3>';
+    listItems = spots.slice().reverse().map(function (s) { s.kind = 'saved'; return s; });
+    listItems.forEach(function (s, i) {
+      h += '<button class="item" data-i="' + i + '"><span class="ic">⭐</span><span class="tx"><b>' + esc(s.name) + '</b><span>' + esc(s.dest || '') + '</span></span></button>';
+    });
+  }
+  setSheet(h);
+  bindItems(function (s) {
+    dest = { lat: s.dlat || s.lat, lng: s.dlng || s.lng, name: s.dest || s.name, addr: '' };
+    setDest(dest, true); choose(s);
+  });
+}
+
+function bindItems(fn) {
+  $('sheet').querySelectorAll('.item').forEach(function (b) {
+    b.onclick = function () { fn(listItems[+b.dataset.i]); };
+  });
+}
+
+function search(text) {
+  setSheet('<p class="muted">찾는 중…</p>');
+  try { history.replaceState(null, '', '?q=' + encodeURIComponent(text)); } catch (e) {}
+  var opt = {};
+  if (map) opt.location = map.getCenter();
+  places.keywordSearch(text, function (data, status) {
+    if (status !== kakao.maps.services.Status.OK || !data.length) {
+      setSheet('<p class="muted">"' + esc(text) + '" 검색 결과가 없어요. 지역 이름을 함께 넣어 보세요. (예: 광양읍 다이소)</p>');
+      return;
+    }
+    listItems = data.slice(0, 8).map(function (p) {
+      return { lat: +p.y, lng: +p.x, name: p.place_name, addr: p.road_address_name || p.address_name };
+    });
+    if (listItems.length === 1) { setDest(listItems[0]); return; }
+    var h = '<h3>목적지를 골라 주세요</h3>';
+    listItems.forEach(function (p, i) {
+      h += '<button class="item" data-i="' + i + '"><span class="ic">📍</span><span class="tx"><b>' + esc(p.name) + '</b><span>' + esc(p.addr) + '</span></span></button>';
+    });
+    setSheet(h);
+    bindItems(function (p) { setDest(p); });
+  }, opt);
+}
+
+function clearMap() {
+  overlays.forEach(function (o) { o.setMap(null); }); overlays = [];
+  if (destMarker) destMarker.setMap(null);
+  if (circle) circle.setMap(null);
+  if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; }
+}
+
+function setDest(p, quiet) {
+  dest = { lat: p.lat, lng: p.lng, name: p.name, addr: p.addr || '' };
+  pick = null; clearMap();
+  var pos = new kakao.maps.LatLng(dest.lat, dest.lng);
+  map.setMapTypeId(kakao.maps.MapTypeId.HYBRID); $('btnType').textContent = '일반지도';
+  map.setLevel(2); map.setCenter(pos);
+  destMarker = new kakao.maps.Marker({ position: pos, map: map, title: dest.name });
+  circle = new kakao.maps.Circle({ center: pos, radius: 100, strokeWeight: 2, strokeColor: '#03c75a', strokeOpacity: .95, strokeStyle: 'dash', fillColor: '#03c75a', fillOpacity: .08, map: map });
+  $('hint').hidden = false;
+  addSavedOverlays();
+  if (!quiet) findLots();
+}
+
+function addOverlay(lat, lng, html, cls, onClick) {
+  var el = document.createElement('div'); el.className = cls; el.innerHTML = html;
+  if (onClick) el.addEventListener('click', function (e) { e.stopPropagation(); onClick(); });
+  var o = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(lat, lng), content: el, yAnchor: .5, zIndex: 3 });
+  o.setMap(map); overlays.push(o); return o;
+}
+
+function nearbySaved() {
+  return loadSpots().map(function (s) {
+    s.kind = 'saved'; s.m = Math.round(hav(s.lat, s.lng, dest.lat, dest.lng)); return s;
+  }).filter(function (s) { return s.m <= 200; }).sort(function (a, b) { return a.m - b.m; });
+}
+
+function addSavedOverlays() {
+  nearbySaved().forEach(function (s) { addOverlay(s.lat, s.lng, '⭐', 'star', function () { choose(s); }); });
+}
+
+function findLots() {
+  setSheet('<p class="muted">주변 주차장 찾는 중…</p>');
+  var pos = new kakao.maps.LatLng(dest.lat, dest.lng);
+  places.categorySearch('PK6', function (data, status) {
+    var lots = (status === kakao.maps.services.Status.OK ? data : []).map(function (p) {
+      return { lat: +p.y, lng: +p.x, name: p.place_name, addr: p.road_address_name || p.address_name, m: +p.distance, kind: 'lot' };
+    }).filter(function (l) { return !/장애인/.test(l.name); });
+    lots.forEach(function (l) { addOverlay(l.lat, l.lng, 'P', 'lot', function () { choose(l); }); });
+    renderDest(lots);
+  }, { location: pos, radius: 400, sort: kakao.maps.services.SortBy.DISTANCE });
+}
+
+function rowHtml(s, i, icon) {
+  return '<button class="item" data-i="' + i + '"><span class="ic">' + icon + '</span><span class="tx"><b>' + esc(s.name) +
+         '</b><span>' + esc(s.addr || s.dest || '') + '</span></span><span class="dist">' + s.m + 'm</span></button>';
+}
+
+function renderDest(lots) {
+  var saved = nearbySaved();
+  var near = lots.filter(function (l) { return l.m <= 100; });
+  var far = lots.filter(function (l) { return l.m > 100; }).slice(0, 4);
+  listItems = saved.concat(near, far);
+  var i = 0;
+  var h = '<div class="dest"><b>' + esc(dest.name) + '</b><span>' + esc(dest.addr) + '</span></div>' +
+          '<p class="tip">👆 위성사진에서 <b>차들이 줄지어 서 있는 곳</b>을 누르면 그 자리로 길안내해요. 초록 점선 원이 반경 100m예요.</p>';
+  if (saved.length) { h += '<h3>⭐ 내가 저장한 자리</h3>'; saved.forEach(function (s) { h += rowHtml(s, i++, '⭐'); }); }
+  h += '<h3>🅿️ 100m 안 주차장</h3>';
+  if (near.length) near.forEach(function (s) { h += rowHtml(s, i++, '🅿️'); });
+  else h += '<p class="muted">100m 안에 등록된 주차장이 없어요.</p>';
+  if (far.length) { h += '<h3>조금 더 걸어도 된다면</h3>'; far.forEach(function (s) { h += rowHtml(s, i++, '🅿️'); }); }
+  setSheet(h);
+  bindItems(choose);
+}
+
+function choose(s) {
+  pick = s;
+  if (pickOverlay) pickOverlay.setMap(null);
+  var el = document.createElement('div'); el.className = 'pin'; el.textContent = '🚗';
+  pickOverlay = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(s.lat, s.lng), content: el, yAnchor: .5, zIndex: 5 });
+  pickOverlay.setMap(map);
+  map.panTo(new kakao.maps.LatLng(s.lat, s.lng));
+  var m = Math.round(hav(s.lat, s.lng, dest.lat, dest.lng));
+  var defName = s.kind === 'tap' ? dest.name + ' 앞 주차' : s.name;
+  var h = '<div class="pickName">' + esc(s.kind === 'tap' ? '내가 고른 자리' : s.name) + '</div>' +
+          '<div class="walk">' + esc(dest.name) + '까지<br><b>' + walkText(m) + '</b></div>' +
+          '<a class="btn main" id="pNav" href="' + esc(navLink(s.lat, s.lng, defName)) + '">네이버 지도 앱으로 길안내</a>' +
+          '<button class="btn sub" id="pRv">🔭 이 자리 로드뷰 보기</button>';
+  if (s.kind === 'saved') h += '<button class="btn sub" id="pDel">저장한 자리에서 지우기</button>';
+  else h += '<input class="nameIn" id="pName" maxlength="30" value="' + esc(defName) + '"><button class="btn sub" id="pSave">⭐ 이 자리 저장</button>';
+  h += '<button class="btn ghost" id="pBack">← 목록으로</button>';
+  setSheet(h);
+  $('pRv').onclick = function () { openRv(s); };
+  $('pBack').onclick = function () { pick = null; if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; } findLotsOrRender(); };
+  if ($('pSave')) $('pSave').onclick = function () {
+    var name = ($('pName').value || defName).trim().slice(0, 30);
+    var a = loadSpots();
+    a.push({ id: Date.now(), lat: s.lat, lng: s.lng, name: name, dest: dest.name, dlat: dest.lat, dlng: dest.lng });
+    if (saveSpots(a)) {
+      toast('저장했어요 ⭐');
+      $('pNav').href = navLink(s.lat, s.lng, name);
+      addOverlay(s.lat, s.lng, '⭐', 'star', function () { choose(a[a.length - 1]); });
+      $('pSave').disabled = true; $('pSave').textContent = '저장됨 ⭐';
+    } else toast('이 브라우저에서는 저장할 수 없어요');
+  };
+  if ($('pDel')) $('pDel').onclick = function () {
+    saveSpots(loadSpots().filter(function (x) { return x.id !== s.id; }));
+    toast('지웠어요'); setDest(dest);
+  };
+}
+
+function findLotsOrRender() { setDest(dest); }
+
+function toggleType() {
+  var hy = map.getMapTypeId() === kakao.maps.MapTypeId.HYBRID;
+  map.setMapTypeId(hy ? kakao.maps.MapTypeId.ROADMAP : kakao.maps.MapTypeId.HYBRID);
+  $('btnType').textContent = hy ? '위성사진' : '일반지도';
+}
+
+function openRv(pt) {
+  if (!pt) { toast('먼저 목적지를 검색해 주세요'); return; }
+  $('rvModal').hidden = false;
+  $('rvMsg').textContent = '로드뷰 불러오는 중…';
+  if (!rv) rv = new kakao.maps.Roadview($('rv'));
+  var pos = new kakao.maps.LatLng(pt.lat, pt.lng);
+  rvClient.getNearestPanoId(pos, 60, function (id) {
+    if (id === null) { $('rvMsg').textContent = '이 근처 60m 안에는 로드뷰가 없어요.'; return; }
+    rv.setPanoId(id, pos);
+    setTimeout(function () { rv.relayout(); }, 60);
+    $('rvMsg').textContent = '손가락으로 끌어서 주변을 둘러보세요';
+  });
+}
 </script>
 </body>
 </html>
