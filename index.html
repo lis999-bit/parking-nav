@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>주차 자리로 길안내</title>
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;
+       font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;background:#f4f6f8;color:#1d2329;padding:20px}
+  .card{width:100%;max-width:420px;background:#fff;border-radius:20px;padding:28px 22px;box-shadow:0 6px 24px rgba(0,0,0,.08);text-align:center}
+  .p{font-size:44px;line-height:1}
+  h1{font-size:22px;margin:12px 0 6px}
+  .coord{font-size:13px;color:#6b7680;margin-bottom:22px}
+  .btn{display:block;width:100%;padding:17px 0;border-radius:14px;font-size:18px;font-weight:700;text-decoration:none;margin-bottom:10px}
+  .main{background:#03c75a;color:#fff}
+  .sub{background:#eef1f4;color:#1d2329;font-size:16px;font-weight:600}
+  .note{font-size:12.5px;color:#8a949e;margin-top:14px;line-height:1.5}
+  .err{color:#c0392b}
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <div class="p">🅿️</div>
+  <h1 id="name">주차 자리</h1>
+  <div class="coord" id="coord"></div>
+  <a class="btn main" id="nav">네이버 지도 앱으로 길안내</a>
+  <a class="btn sub" id="place">앱에서 위치만 보기</a>
+  <a class="btn sub" id="web">웹 지도로 보기</a>
+  <div class="note">버튼을 누르면 네이버 지도 앱이 열리고, 이 좌표로 바로 내비가 시작돼요.<br>앱이 없으면 설치 화면으로 이동해요.</div>
+</div>
+<script>
+  var q = new URLSearchParams(location.search);
+  var lat = parseFloat(q.get('lat')), lng = parseFloat(q.get('lng'));
+  var name = (q.get('name') || '주차 자리').slice(0, 40);
+  var card = document.getElementById('card');
+  if (!(lat > 31 && lat < 45 && lng > 122 && lng < 133)) {
+    card.innerHTML = '<div class="p">⚠️</div><h1 class="err">좌표가 없어요</h1><div class="coord">?lat=위도&lng=경도&name=이름 형식으로 열어 주세요.</div>';
+  } else {
+    var app = encodeURIComponent(location.origin + location.pathname);
+    var nm = encodeURIComponent(name);
+    var isAndroid = /Android/i.test(navigator.userAgent);
+    function link(path, params) {
+      var body = path + '?' + params + '&appname=' + app;
+      if (isAndroid) {
+        return 'intent://' + body + '#Intent;scheme=nmap;action=android.intent.action.VIEW;' +
+               'category=android.intent.category.BROWSABLE;package=com.nhn.android.nmap;end';
+      }
+      return 'nmap://' + body;
+    }
+    document.getElementById('name').textContent = name;
+    document.getElementById('coord').textContent = lat.toFixed(6) + ', ' + lng.toFixed(6);
+    document.title = name + ' 길안내';
+    document.getElementById('nav').href = link('navigation', 'dlat=' + lat + '&dlng=' + lng + '&dname=' + nm);
+    document.getElementById('place').href = link('place', 'lat=' + lat + '&lng=' + lng + '&name=' + nm);
+    document.getElementById('web').href = 'https://map.naver.com/?lng=' + lng + '&lat=' + lat + '&title=' + nm;
+  }
+</script>
+</body>
+</html>
