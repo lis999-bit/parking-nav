@@ -14,7 +14,7 @@
   body{font-family:-apple-system,"Apple SD Gothic Neo","Noto Sans KR",sans-serif;color:#1d2329;background:#f4f6f8}
   button,input{font-family:inherit}
   #finder{display:flex;flex-direction:column;height:100%}
-  header{padding:10px 10px 8px;background:#fff;box-shadow:0 1px 0 #e5e8eb;z-index:3}
+  header{position:sticky;top:0;padding:10px 10px 8px;background:#fff;box-shadow:0 1px 0 #e5e8eb;z-index:3}
   #sf{display:flex;gap:6px}
   #q{flex:1;min-width:0;font-size:16px;padding:12px 12px;border:1.5px solid #d5dbe0;border-radius:12px;outline:none}
   #q:focus{border-color:#03c75a}
@@ -75,6 +75,10 @@
   .rvBar{display:flex;align-items:center;gap:8px;padding:10px;background:#111;color:#ddd;font-size:13px}
   .rvBar span{flex:1}
   .rvBar button{font-size:15px;font-weight:700;padding:10px 18px;border:none;border-radius:10px;background:#fff}
+  #rvHome,#rvCar{padding:8px 11px;font-size:18px}
+  .navTop{position:fixed;top:0;left:0;right:0;display:flex;gap:6px;padding:10px;background:#fff;box-shadow:0 1px 0 #e5e8eb;z-index:3}
+  .navTop a{font-size:18px;text-decoration:none;padding:9px 12px;border-radius:12px;background:#eef1f4}
+  .navTop a.car{background:#e3ebff}
   .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1d2329;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;z-index:20}
   /* 길안내 전용 화면 (lat/lng 링크로 열었을 때) */
   #navMode{min-height:100%;display:flex;align-items:center;justify-content:center;padding:20px}
@@ -102,7 +106,7 @@
 
 <div id="rvModal" hidden>
   <div id="rv"></div>
-  <div class="rvBar"><span id="rvMsg">손가락으로 끌어서 주변을 둘러보세요</span><button type="button" id="rvClose">닫기</button></div>
+  <div class="rvBar"><button type="button" id="rvHome" aria-label="처음 화면">🏠</button><button type="button" id="rvCar" aria-label="내 차">🚙</button><span id="rvMsg">손가락으로 끌어서 주변을 둘러보세요</span><button type="button" id="rvClose">닫기</button></div>
 </div>
 
 <script>
@@ -156,6 +160,7 @@ if (valid(plat, plng)) {
   h += '<a class="btn main" href="' + esc(navLink(plat, plng, pname)) + '">네이버 지도 앱으로 길안내</a>' +
        '<a class="btn sub" href="' + esc(nmap('place', 'lat=' + plat + '&lng=' + plng + '&name=' + encodeURIComponent(pname))) + '">앱에서 위치만 보기</a>' +
        '<a class="btn ghost" href="' + esc(location.pathname) + '">🔍 다른 목적지 찾기</a></div>';
+  h = '<div class="navTop"><a href="' + esc(location.pathname) + '" aria-label="처음 화면">🏠</a><a class="car" href="' + esc(location.pathname) + '#car" aria-label="내 차">🚙</a></div>' + h;
   $('navMode').innerHTML = h;
   $('navMode').hidden = false;
 } else {
@@ -215,8 +220,11 @@ function init() {
   $('btnCar').onclick = openCar;
   $('btnHome').onclick = goHome;
   $('rvClose').onclick = function () { $('rvModal').hidden = true; };
+  $('rvHome').onclick = function () { $('rvModal').hidden = true; goHome(); };
+  $('rvCar').onclick = function () { $('rvModal').hidden = true; openCar(); };
   var last = params.get('q');
   if (last) { $('q').value = last; search(last); } else renderHome();
+  if (location.hash === '#car') { try { history.replaceState(null, '', location.pathname); } catch (e) {} openCar(); }
 }
 
 function goHome() {
@@ -720,6 +728,9 @@ function openRv(pt) {
     setTimeout(function () { rv.relayout(); }, 60);
     $('rvMsg').textContent = '손가락으로 끌어서 주변을 둘러보세요';
   });
+}
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', function () { navigator.serviceWorker.register('sw.js').catch(function () {}); });
 }
 </script>
 </body>
