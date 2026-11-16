@@ -23,6 +23,9 @@
   #map{width:100%;height:100%}
   .mapBtns{position:absolute;right:8px;top:8px;z-index:2;display:flex;flex-direction:column;gap:6px}
   .mapBtns button{font-size:13px;font-weight:700;padding:8px 10px;border:none;border-radius:10px;background:#fff;color:#1d2329;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 4px}
+  .chip{border:none;background:#fff4d6;color:#7a5a00;font-size:14.5px;font-weight:700;padding:9px 13px;border-radius:20px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .favOn{background:#fff4d6 !important;color:#7a5a00 !important}
   .carBtn{position:absolute;left:8px;top:8px;z-index:2;font-size:14px;font-weight:800;padding:9px 12px;border:none;border-radius:12px;background:#1d2329;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
   .carCard{background:#f1f5ff;border-radius:14px;padding:12px 13px;margin:6px 0 4px}
   .carCard b{font-size:16px}
@@ -130,6 +133,13 @@ function toast(t) {
 var SKEY = 'pn-spots';
 function loadSpots() { try { return JSON.parse(localStorage.getItem(SKEY) || '[]'); } catch (e) { return []; } }
 function saveSpots(a) { try { localStorage.setItem(SKEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
+/* 자주 가는 곳(목적지 즐겨찾기) */
+var FKEY = 'pn-favs';
+function loadFavs() { try { return JSON.parse(localStorage.getItem(FKEY) || '[]'); } catch (e) { return []; } }
+function saveFavs(a) { try { localStorage.setItem(FKEY, JSON.stringify(a)); return true; } catch (e) { return false; } }
+function favIndex(d) {
+  return loadFavs().findIndex(function (f) { return hav(f.lat, f.lng, d.lat, d.lng) < 15 && f.place === d.name; });
+}
 
 /* ---------- 길안내 전용 화면: ?lat=&lng=&name=(&dlat=&dlng=&dname=) ---------- */
 var plat = parseFloat(params.get('lat')), plng = parseFloat(params.get('lng'));
@@ -214,6 +224,12 @@ function renderHome() {
   if (car) {
     h += '<button class="btn main" id="hCar" style="background:#1d4ed8">🚙 내 차 찾기 · ' + esc(car.name && car.name !== '내 차' ? car.name + ' · ' : '') + esc(ago(car.ts)) + ' 주차</button>';
   }
+  var favs = loadFavs();
+  if (favs.length) {
+    h += '<h3>★ 자주 가는 곳</h3><div class="chips">';
+    favs.forEach(function (f, i) { h += '<button class="chip" data-f="' + i + '">' + esc(f.name) + '</button>'; });
+    h += '</div>';
+  }
   h += '<p class="tip">목적지를 검색하면 반경 100m 안의 주차장을 찾아 드려요. 위성사진에서 차들이 서 있는 곳을 눌러 그 자리로 바로 길안내할 수도 있어요.</p>';
   h += '<button class="btn sub" id="hHere">📍 지금 있는 곳을 주차 자리로 저장</button>';
   if (spots.length) {
@@ -226,6 +242,13 @@ function renderHome() {
   setSheet(h);
   if (car) { $('hCar').onclick = function () { renderCarFound(car); }; showCarOnMap(car); }
   $('hHere').onclick = saveHereAsSpot;
+  $('sheet').querySelectorAll('.chip').forEach(function (b) {
+    b.onclick = function () {
+      var f = favs[+b.dataset.f];
+      $('q').value = f.place;
+      setDest({ lat: f.lat, lng: f.lng, name: f.place, addr: f.addr });
+    };
+  });
   bindItems(function (s) {
     dest = { lat: s.dlat || s.lat, lng: s.dlng || s.lng, name: s.dest || s.name, addr: '' };
     setDest(dest, true); choose(s);
@@ -349,6 +372,8 @@ function renderDest(lots) {
   var i = 0;
   var h = '<div class="dest"><b>' + esc(dest.name) + '</b><span>' + esc(dest.addr) + '</span></div>' +
           '<a class="btn sub" href="' + esc(navLink(dest.lat, dest.lng, dest.name)) + '">🏁 목적지로 바로 길안내</a>' +
+          '<button class="btn sub" id="dFav"></button>' +
+          '<div id="dFavEdit" hidden><input class="nameIn" id="dFavName" maxlength="20"><button class="btn main" id="dFavOk">★ 이 이름으로 추가</button></div>' +
           '<button class="btn sub" id="dHere">📍 지금 있는 곳을 주차 자리로 저장</button>' +
           '<p class="tip">👆 위성사진에서 <b>차들이 줄지어 서 있는 곳</b>을 누르면 그 자리로 길안내해요. 초록 점선 원이 반경 100m예요.</p>';
   if (saved.length) { h += '<h3>⭐ 내가 저장한 자리</h3>'; saved.forEach(function (s) { h += rowHtml(s, i++, '⭐'); }); }
@@ -360,6 +385,24 @@ function renderDest(lots) {
   setSheet(h);
   bindItems(choose);
   $('dHere').onclick = saveHereAsSpot;
+  function paintFav() {
+    var on = favIndex(dest) >= 0;
+    $('dFav').textContent = on ? '★ 자주 가는 곳에 등록됨 (누르면 빼기)' : '☆ 자주 가는 곳에 추가';
+    $('dFav').classList.toggle('favOn', on);
+  }
+  paintFav();
+  $('dFav').onclick = function () {
+    var i = favIndex(dest);
+    if (i >= 0) { var a = loadFavs(); a.splice(i, 1); saveFavs(a); toast('자주 가는 곳에서 뺐어요'); paintFav(); return; }
+    $('dFavName').value = dest.name.slice(0, 20);
+    $('dFavEdit').hidden = false; $('dFavName').focus();
+  };
+  $('dFavOk').onclick = function () {
+    var a = loadFavs();
+    a.push({ id: Date.now(), name: ($('dFavName').value.trim() || dest.name).slice(0, 20), place: dest.name, addr: dest.addr, lat: dest.lat, lng: dest.lng });
+    if (saveFavs(a)) toast('자주 가는 곳에 추가했어요 ★'); else toast('이 브라우저에서는 저장할 수 없어요');
+    $('dFavEdit').hidden = true; paintFav();
+  };
 }
 
 /* 지도에 없는 곳(길가, 골목 등)에 주차했을 때: 지금 GPS 위치를 ⭐ 주차 자리로 저장 */
