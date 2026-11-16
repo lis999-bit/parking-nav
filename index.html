@@ -215,15 +215,17 @@ function renderHome() {
     h += '<button class="btn main" id="hCar" style="background:#1d4ed8">🚙 내 차 찾기 · ' + esc(ago(car.ts)) + ' 주차</button>';
   }
   h += '<p class="tip">목적지를 검색하면 반경 100m 안의 주차장을 찾아 드려요. 위성사진에서 차들이 서 있는 곳을 눌러 그 자리로 바로 길안내할 수도 있어요.</p>';
+  h += '<button class="btn sub" id="hHere">📍 지금 있는 곳을 주차 자리로 저장</button>';
   if (spots.length) {
     h += '<h3>⭐ 내가 저장한 자리</h3>';
     listItems = spots.slice().reverse().map(function (s) { s.kind = 'saved'; return s; });
     listItems.forEach(function (s, i) {
-      h += '<button class="item" data-i="' + i + '"><span class="ic">⭐</span><span class="tx"><b>' + esc(s.name) + '</b><span>' + esc(s.dest || '') + '</span></span></button>';
+      h += '<button class="item" data-i="' + i + '"><span class="ic">⭐</span><span class="tx"><b>' + esc(s.name) + '</b><span>' + esc(s.note || s.dest || '') + '</span></span></button>';
     });
   }
   setSheet(h);
   if (car) { $('hCar').onclick = function () { renderCarFound(car); }; showCarOnMap(car); }
+  $('hHere').onclick = saveHereAsSpot;
   bindItems(function (s) {
     dest = { lat: s.dlat || s.lat, lng: s.dlng || s.lng, name: s.dest || s.name, addr: '' };
     setDest(dest, true); choose(s);
@@ -333,7 +335,7 @@ function findLots() {
 
 function badge(fee) { return fee ? '<span class="badge b-' + fee.cls + '">' + esc(fee.label) + '</span>' : ''; }
 function rowHtml(s, i, icon) {
-  var sub = s.fee && s.fee.detail ? s.fee.detail : (s.addr || s.dest || '');
+  var sub = s.fee && s.fee.detail ? s.fee.detail : (s.note || s.addr || s.dest || '');
   return '<button class="item" data-i="' + i + '"><span class="ic">' + icon + '</span><span class="tx"><b>' + esc(s.name) + badge(s.fee) +
          '</b><span>' + esc(sub) + '</span></span><span class="dist">' + s.m + 'm</span></button>';
 }
@@ -346,6 +348,8 @@ function renderDest(lots) {
   listItems = saved.concat(near, far);
   var i = 0;
   var h = '<div class="dest"><b>' + esc(dest.name) + '</b><span>' + esc(dest.addr) + '</span></div>' +
+          '<a class="btn sub" href="' + esc(navLink(dest.lat, dest.lng, dest.name)) + '">🏁 목적지로 바로 길안내</a>' +
+          '<button class="btn sub" id="dHere">📍 지금 있는 곳을 주차 자리로 저장</button>' +
           '<p class="tip">👆 위성사진에서 <b>차들이 줄지어 서 있는 곳</b>을 누르면 그 자리로 길안내해요. 초록 점선 원이 반경 100m예요.</p>';
   if (saved.length) { h += '<h3>⭐ 내가 저장한 자리</h3>'; saved.forEach(function (s) { h += rowHtml(s, i++, '⭐'); }); }
   h += '<h3>🅿️ 100m 안 주차장</h3>';
@@ -355,6 +359,57 @@ function renderDest(lots) {
   h += SRC;
   setSheet(h);
   bindItems(choose);
+  $('dHere').onclick = saveHereAsSpot;
+}
+
+/* 지도에 없는 곳(길가, 골목 등)에 주차했을 때: 지금 GPS 위치를 ⭐ 주차 자리로 저장 */
+function saveHereAsSpot() {
+  var b = this;
+  if (!navigator.geolocation) { toast('이 브라우저는 위치 기능을 지원하지 않아요'); return; }
+  var old = b.textContent; b.disabled = true; b.textContent = '위치 확인 중…';
+  navigator.geolocation.getCurrentPosition(function (p) {
+    b.disabled = false; b.textContent = old;
+    renderSpotNew(p.coords.latitude, p.coords.longitude, Math.round(p.coords.accuracy));
+  }, function (e) {
+    b.disabled = false; b.textContent = old;
+    toast(e.code === 1 ? '위치 권한을 허용해 주세요' : '위치를 찾지 못했어요. 다시 눌러 주세요');
+  }, { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 });
+}
+
+function renderSpotNew(lat, lng, acc) {
+  stopWatch();
+  if (pickOverlay) pickOverlay.setMap(null);
+  var el = document.createElement('div'); el.className = 'pin'; el.textContent = '📍';
+  pickOverlay = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(lat, lng), content: el, yAnchor: .5, zIndex: 5 });
+  pickOverlay.setMap(map);
+  map.setLevel(2); map.setCenter(new kakao.maps.LatLng(lat, lng));
+  var m = dest ? Math.round(hav(lat, lng, dest.lat, dest.lng)) : null;
+  var defName = dest ? dest.name + ' 근처 길가' : '내가 찾은 주차 자리';
+  var h = '<h3>📍 이 자리를 주차 자리로 저장</h3>' +
+          '<p class="tip">지도에 주차장으로 나오지 않는 곳(길가, 골목, 가게 앞 등)도 저장해 두면, 다음에 근처를 검색할 때 ⭐로 맨 위에 떠요.' +
+          (acc ? ' 지금 위치 오차는 약 ±' + acc + 'm예요.' : '') + '</p>' +
+          (m !== null ? '<div class="walk">' + esc(dest.name) + '까지<br><b>' + walkText(m) + '</b></div>' : '') +
+          '<input class="nameIn" id="sName" maxlength="30" value="' + esc(defName) + '">' +
+          '<input class="nameIn" id="sNote" maxlength="40" placeholder="메모 (예: 평일 저녁 단속 없음, 셔터 앞 피하기)">' +
+          '<button class="btn main" id="sSave">⭐ 주차 자리로 저장</button>' +
+          '<button class="btn sub" id="sCar">🚙 저장하고 내 차 위치로도 기록</button>' +
+          '<button class="btn ghost" id="sBack">← 돌아가기</button>';
+  setSheet(h);
+  function save(alsoCar) {
+    var name = ($('sName').value || defName).trim().slice(0, 30);
+    var note = $('sNote').value.trim().slice(0, 40);
+    var a = loadSpots();
+    a.push({ id: Date.now(), lat: lat, lng: lng, name: name, note: note,
+             dest: dest ? dest.name : '', dlat: dest ? dest.lat : lat, dlng: dest ? dest.lng : lng });
+    if (!saveSpots(a)) { toast('이 브라우저에서는 저장할 수 없어요'); return; }
+    if (alsoCar) saveCar({ lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), note: note || name, photo: null });
+    toast(alsoCar ? '주차 자리와 내 차 위치를 저장했어요' : '주차 자리를 저장했어요 ⭐');
+    if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; }
+    if (alsoCar) renderCarFound(loadCar()); else back();
+  }
+  $('sSave').onclick = function () { save(false); };
+  $('sCar').onclick = function () { save(true); };
+  $('sBack').onclick = function () { if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; } back(); };
 }
 
 function choose(s) {
@@ -368,6 +423,7 @@ function choose(s) {
   var defName = s.kind === 'tap' ? dest.name + ' 앞 주차' : s.name;
   var h = '<div class="pickName">' + esc(s.kind === 'tap' ? '내가 고른 자리' : s.name) + badge(s.fee) + '</div>' +
           (s.fee && s.fee.detail ? '<div class="fee">💰 ' + esc(s.fee.detail) + '</div>' : '') +
+          (s.note ? '<div class="fee">📝 ' + esc(s.note) + '</div>' : '') +
           '<div class="walk">' + esc(dest.name) + '까지<br><b>' + walkText(m) + '</b></div>' +
           '<a class="btn main" id="pNav" href="' + esc(navLink(s.lat, s.lng, defName)) + '">네이버 지도 앱으로 길안내</a>' +
           '<button class="btn sub" id="pRv">🔭 이 자리 로드뷰 보기</button>';
