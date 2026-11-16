@@ -71,6 +71,7 @@
   .b-none{background:#eef1f4;color:#7a858f}
   .fee{font-size:13.5px;color:#4a545e;margin-top:6px;line-height:1.5}
   .src{font-size:11.5px;color:#9aa4ad;margin-top:18px;line-height:1.5}
+  .lot.mine{background:#ffc400;color:#3a2a00;width:28px;height:28px;font-size:15px;border-color:#fff;z-index:2}
   .lot.free{background:#12a150}
   .lot.paid{background:#e8770e}
   .lot{background:#2a6ef0;color:#fff;font-weight:800;font-size:13px;width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4);cursor:pointer}
@@ -395,7 +396,7 @@ function setDest(p, quiet) {
 function addOverlay(lat, lng, html, cls, onClick) {
   var el = document.createElement('div'); el.className = cls; el.innerHTML = html;
   if (onClick) el.addEventListener('click', function (e) { e.stopPropagation(); onClick(); });
-  var o = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(lat, lng), content: el, yAnchor: .5, zIndex: 3 });
+  var o = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(lat, lng), content: el, yAnchor: .5, zIndex: /mine/.test(cls) ? 4 : 3 });
   o.setMap(map); overlays.push(o); return o;
 }
 
@@ -426,7 +427,7 @@ function linkBox(id, t) {
 }
 
 function addSavedOverlays() {
-  nearbySaved().forEach(function (s) { addOverlay(s.lat, s.lng, '⭐', 'star', function () { choose(s); }); });
+  nearbySaved().forEach(function (s) { addOverlay(s.lat, s.lng, 'P', 'lot mine', function () { choose(s); }); });
 }
 
 function findLots() {
@@ -578,7 +579,7 @@ function choose(s) {
     if (saveSpots(a)) {
       toast('저장했어요 ⭐');
       $('pNav').href = navLink(s.lat, s.lng, name);
-      addOverlay(s.lat, s.lng, '⭐', 'star', function () { choose(a[a.length - 1]); });
+      addOverlay(s.lat, s.lng, 'P', 'lot mine', function () { choose(a[a.length - 1]); });
       $('pSave').disabled = true; $('pSave').textContent = '저장됨 ⭐';
     } else toast('이 브라우저에서는 저장할 수 없어요');
   };
