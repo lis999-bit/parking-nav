@@ -26,6 +26,8 @@
   .chips{display:flex;flex-wrap:wrap;gap:7px;margin:6px 0 4px}
   .chip{border:none;background:#fff4d6;color:#7a5a00;font-size:14.5px;font-weight:700;padding:9px 13px;border-radius:20px;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   .favOn{background:#fff4d6 !important;color:#7a5a00 !important}
+  .linkBox{display:block;background:#fff7e0;border-radius:10px;padding:10px 11px;margin-top:9px;font-size:13.5px;color:#5c4500;line-height:1.45}
+  .linkBox input{width:18px;height:18px;vertical-align:-3px}
   .carBtn{position:absolute;left:8px;top:8px;z-index:2;font-size:14px;font-weight:800;padding:9px 12px;border:none;border-radius:12px;background:#1d2329;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
   .carCard{background:#f1f5ff;border-radius:14px;padding:12px 13px;margin:6px 0 4px}
   .carCard b{font-size:16px}
@@ -293,6 +295,7 @@ function clearMap() {
 
 function setDest(p, quiet) {
   dest = { lat: p.lat, lng: p.lng, name: p.name, addr: p.addr || '' };
+  try { localStorage.setItem('pn-last-dest', JSON.stringify({ lat: dest.lat, lng: dest.lng, name: dest.name, addr: dest.addr, ts: Date.now() })); } catch (e) {}
   pick = null; clearMap();
   var pos = new kakao.maps.LatLng(dest.lat, dest.lng);
   map.setMapTypeId(kakao.maps.MapTypeId.HYBRID); $('btnType').textContent = '일반지도';
@@ -311,10 +314,30 @@ function addOverlay(lat, lng, html, cls, onClick) {
   o.setMap(map); overlays.push(o); return o;
 }
 
+/* 이 목적지용으로 저장한 자리(거리 상관없이) + 목적지 200m 안의 다른 저장 자리 */
+function linkedTo(s, d) { return s.dest && s.dest === d.name && hav(s.dlat, s.dlng, d.lat, d.lng) < 60; }
 function nearbySaved() {
   return loadSpots().map(function (s) {
-    s.kind = 'saved'; s.m = Math.round(hav(s.lat, s.lng, dest.lat, dest.lng)); return s;
-  }).filter(function (s) { return s.m <= 200; }).sort(function (a, b) { return a.m - b.m; });
+    s.kind = 'saved'; s.m = Math.round(hav(s.lat, s.lng, dest.lat, dest.lng)); s.mine = linkedTo(s, dest); return s;
+  }).filter(function (s) { return s.mine || s.m <= 200; }).sort(function (a, b) { return (b.mine - a.mine) || (a.m - b.m); });
+}
+/* 지금 보고 있는 목적지, 없으면 12시간 안에 검색했던 마지막 목적지 */
+function targetDest() {
+  if (dest) return dest;
+  try {
+    var l = JSON.parse(localStorage.getItem('pn-last-dest') || 'null');
+    if (l && Date.now() - l.ts < 12 * 3600 * 1000) return l;
+  } catch (e) {}
+  return null;
+}
+function addSpot(lat, lng, name, note, t) {
+  var a = loadSpots();
+  a.push({ id: Date.now(), lat: lat, lng: lng, name: name, note: note || '',
+           dest: t ? t.name : '', dlat: t ? t.lat : lat, dlng: t ? t.lng : lng });
+  return saveSpots(a);
+}
+function linkBox(id, t) {
+  return t ? '<label class="linkBox"><input type="checkbox" id="' + id + '" checked> <b>' + esc(t.name) + '</b> 갈 때 쓸 주차 자리로 저장 (다음에 이 목적지를 검색하면 ⭐로 떠요)</label>' : '';
 }
 
 function addSavedOverlays() {
@@ -426,13 +449,15 @@ function renderSpotNew(lat, lng, acc) {
   pickOverlay = new kakao.maps.CustomOverlay({ position: new kakao.maps.LatLng(lat, lng), content: el, yAnchor: .5, zIndex: 5 });
   pickOverlay.setMap(map);
   map.setLevel(2); map.setCenter(new kakao.maps.LatLng(lat, lng));
-  var m = dest ? Math.round(hav(lat, lng, dest.lat, dest.lng)) : null;
-  var defName = dest ? dest.name + ' 근처 길가' : '내가 찾은 주차 자리';
+  var t = targetDest();
+  var m = t ? Math.round(hav(lat, lng, t.lat, t.lng)) : null;
+  var defName = t ? t.name + ' 갈 때 주차' : '내가 찾은 주차 자리';
   var h = '<h3>📍 이 자리를 주차 자리로 저장</h3>' +
           '<p class="tip">지도에 주차장으로 나오지 않는 곳(길가, 골목, 가게 앞 등)도 저장해 두면, 다음에 근처를 검색할 때 ⭐로 맨 위에 떠요.' +
           (acc ? ' 지금 위치 오차는 약 ±' + acc + 'm예요.' : '') + '</p>' +
-          (m !== null ? '<div class="walk">' + esc(dest.name) + '까지<br><b>' + walkText(m) + '</b></div>' : '') +
-          '<input class="nameIn" id="sName" maxlength="30" value="' + esc(defName) + '">' +
+          (m !== null ? '<div class="walk">' + esc(t.name) + '까지<br><b>' + walkText(m) + '</b></div>' : '') +
+          '<input class="nameIn" id="sName" maxlength="30" placeholder="이름 (예: 다이소 뒤 골목)" value="' + esc(defName) + '">' +
+          linkBox('sLink', t) +
           '<input class="nameIn" id="sNote" maxlength="40" placeholder="메모 (예: 평일 저녁 단속 없음, 셔터 앞 피하기)">' +
           '<button class="btn main" id="sSave">⭐ 주차 자리로 저장</button>' +
           '<button class="btn sub" id="sCar">🚙 저장하고 내 차 위치로도 기록</button>' +
@@ -441,10 +466,7 @@ function renderSpotNew(lat, lng, acc) {
   function save(alsoCar) {
     var name = ($('sName').value || defName).trim().slice(0, 30);
     var note = $('sNote').value.trim().slice(0, 40);
-    var a = loadSpots();
-    a.push({ id: Date.now(), lat: lat, lng: lng, name: name, note: note,
-             dest: dest ? dest.name : '', dlat: dest ? dest.lat : lat, dlng: dest ? dest.lng : lng });
-    if (!saveSpots(a)) { toast('이 브라우저에서는 저장할 수 없어요'); return; }
+    if (!addSpot(lat, lng, name, note, t && $('sLink') && $('sLink').checked ? t : null)) { toast('이 브라우저에서는 저장할 수 없어요'); return; }
     if (alsoCar) saveCar({ lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), name: name, note: note, photo: null });
     toast(alsoCar ? '주차 자리와 내 차 위치를 저장했어요' : '주차 자리를 저장했어요 ⭐');
     if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; }
@@ -562,10 +584,11 @@ function renderCarNew(prefill) {
   var photo = null;
   var h = '<h3>🚙 주차 위치 저장</h3>' +
           '<p class="tip">차를 세운 자리에서 저장 버튼을 누르면 폰의 위치(GPS)로 기록해요. 지하·실내 주차장은 위치가 부정확할 수 있으니 층·구역을 메모나 사진으로 남겨 두세요.</p>' +
-          '<input class="nameIn" id="cName" maxlength="30" placeholder="이름 (예: 회사 주차장, 다이소 앞)" value="' + esc(prefill ? prefill.name : (dest ? dest.name + ' 근처' : '')) + '">' +
+          '<input class="nameIn" id="cName" maxlength="30" placeholder="이름 (예: 회사 주차장, 다이소 앞)" value="' + esc(prefill ? prefill.name : (targetDest() ? targetDest().name + ' 갈 때 주차' : '')) + '">' +
           '<input class="nameIn" id="cNote" maxlength="40" placeholder="메모 (예: 지하2층 B-12, 기둥 C3)">' +
           '<label class="fileLbl" for="cPhoto" id="cPhotoLbl">📷 사진 추가 (선택)</label><input type="file" id="cPhoto" accept="image/*" capture="environment" hidden>' +
           '<img class="carPhoto" id="cPrev" alt="" hidden>' +
+          linkBox('cLink', targetDest()) +
           '<button class="btn main" id="cGps">📍 지금 내 위치를 주차 위치로 저장</button>' +
           (prefill ? '<button class="btn sub" id="cPick">🅿️ 고른 자리로 저장 (' + esc(prefill.name) + ')</button>' : '') +
           '<button class="btn ghost" id="cBack">← 돌아가기</button>';
@@ -577,6 +600,8 @@ function renderCarNew(prefill) {
   function store(lat, lng, acc) {
     var c = { lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), name: $('cName').value.trim().slice(0, 30) || '내 차',
               note: $('cNote').value.trim().slice(0, 40), photo: photo };
+    var t = targetDest();
+    if (t && $('cLink') && $('cLink').checked) addSpot(lat, lng, c.name === '내 차' ? t.name + ' 갈 때 주차' : c.name, c.note, t);
     if (saveCar(c)) toast('주차 위치를 저장했어요 🚙');
     else { c.photo = null; if (!saveCar(c)) { toast('이 브라우저에서는 저장할 수 없어요'); return; } toast('사진은 용량 때문에 빼고 저장했어요'); }
     renderCarFound(c);
