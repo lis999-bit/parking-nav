@@ -212,7 +212,7 @@ function renderHome() {
   var car = loadCar();
   var h = '';
   if (car) {
-    h += '<button class="btn main" id="hCar" style="background:#1d4ed8">🚙 내 차 찾기 · ' + esc(ago(car.ts)) + ' 주차</button>';
+    h += '<button class="btn main" id="hCar" style="background:#1d4ed8">🚙 내 차 찾기 · ' + esc(car.name && car.name !== '내 차' ? car.name + ' · ' : '') + esc(ago(car.ts)) + ' 주차</button>';
   }
   h += '<p class="tip">목적지를 검색하면 반경 100m 안의 주차장을 찾아 드려요. 위성사진에서 차들이 서 있는 곳을 눌러 그 자리로 바로 길안내할 수도 있어요.</p>';
   h += '<button class="btn sub" id="hHere">📍 지금 있는 곳을 주차 자리로 저장</button>';
@@ -402,7 +402,7 @@ function renderSpotNew(lat, lng, acc) {
     a.push({ id: Date.now(), lat: lat, lng: lng, name: name, note: note,
              dest: dest ? dest.name : '', dlat: dest ? dest.lat : lat, dlng: dest ? dest.lng : lng });
     if (!saveSpots(a)) { toast('이 브라우저에서는 저장할 수 없어요'); return; }
-    if (alsoCar) saveCar({ lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), note: note || name, photo: null });
+    if (alsoCar) saveCar({ lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), name: name, note: note, photo: null });
     toast(alsoCar ? '주차 자리와 내 차 위치를 저장했어요' : '주차 자리를 저장했어요 ⭐');
     if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; }
     if (alsoCar) renderCarFound(loadCar()); else back();
@@ -519,7 +519,8 @@ function renderCarNew(prefill) {
   var photo = null;
   var h = '<h3>🚙 주차 위치 저장</h3>' +
           '<p class="tip">차를 세운 자리에서 저장 버튼을 누르면 폰의 위치(GPS)로 기록해요. 지하·실내 주차장은 위치가 부정확할 수 있으니 층·구역을 메모나 사진으로 남겨 두세요.</p>' +
-          '<input class="nameIn" id="cNote" maxlength="40" placeholder="메모 (예: 지하2층 B-12, 파리바게뜨 앞)">' +
+          '<input class="nameIn" id="cName" maxlength="30" placeholder="이름 (예: 회사 주차장, 다이소 앞)" value="' + esc(prefill ? prefill.name : (dest ? dest.name + ' 근처' : '')) + '">' +
+          '<input class="nameIn" id="cNote" maxlength="40" placeholder="메모 (예: 지하2층 B-12, 기둥 C3)">' +
           '<label class="fileLbl" for="cPhoto" id="cPhotoLbl">📷 사진 추가 (선택)</label><input type="file" id="cPhoto" accept="image/*" capture="environment" hidden>' +
           '<img class="carPhoto" id="cPrev" alt="" hidden>' +
           '<button class="btn main" id="cGps">📍 지금 내 위치를 주차 위치로 저장</button>' +
@@ -531,7 +532,8 @@ function renderCarNew(prefill) {
     shrink(f, function (url) { photo = url; $('cPrev').src = url; $('cPrev').hidden = false; $('cPhotoLbl').textContent = '📷 사진 바꾸기'; });
   };
   function store(lat, lng, acc) {
-    var c = { lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), note: $('cNote').value.trim().slice(0, 40), photo: photo };
+    var c = { lat: lat, lng: lng, acc: acc || 0, ts: Date.now(), name: $('cName').value.trim().slice(0, 30) || '내 차',
+              note: $('cNote').value.trim().slice(0, 40), photo: photo };
     if (saveCar(c)) toast('주차 위치를 저장했어요 🚙');
     else { c.photo = null; if (!saveCar(c)) { toast('이 브라우저에서는 저장할 수 없어요'); return; } toast('사진은 용량 때문에 빼고 저장했어요'); }
     renderCarFound(c);
@@ -555,12 +557,12 @@ function renderCarFound(c) {
   stopWatch();
   showCarOnMap(c);
   fitCarAndMe(c);
-  var h = '<div class="carCard"><b>🚙 내 차 위치</b><div class="meta">' + esc(timeStr(c.ts)) + ' 저장 · ' + esc(ago(c.ts)) +
+  var h = '<div class="carCard"><b>🚙 ' + esc(c.name || '내 차 위치') + '</b><div class="meta">' + esc(timeStr(c.ts)) + ' 저장 · ' + esc(ago(c.ts)) +
           (c.acc ? ' · 위치 오차 약 ±' + c.acc + 'm' : '') + '</div>' +
           (c.note ? '<div class="meta">📝 ' + esc(c.note) + '</div>' : '') + '</div>' +
           '<div class="carBig" id="cDist">내 위치 확인 중…</div>' +
           (c.photo ? '<img class="carPhoto" alt="주차 사진" src="' + esc(c.photo) + '">' : '') +
-          '<a class="btn main" style="background:#1d4ed8" href="' + esc(nmap('route/walk', 'dlat=' + c.lat + '&dlng=' + c.lng + '&dname=' + encodeURIComponent('내 차'))) + '">🚶 네이버 지도로 걸어서 길안내</a>' +
+          '<a class="btn main" style="background:#1d4ed8" href="' + esc(nmap('route/walk', 'dlat=' + c.lat + '&dlng=' + c.lng + '&dname=' + encodeURIComponent(c.name || '내 차'))) + '">🚶 네이버 지도로 걸어서 길안내</a>' +
           '<button class="btn sub" id="cFit">🗺️ 지도에서 내 차와 내 위치 보기</button>' +
           '<button class="btn sub" id="cRv">🔭 주차한 곳 로드뷰</button>' +
           '<button class="btn sub" id="cNew">📍 주차 위치 다시 저장</button>' +
