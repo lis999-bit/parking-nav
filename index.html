@@ -18,7 +18,8 @@
   #sf{display:flex;gap:6px}
   #q{flex:1;min-width:0;font-size:16px;padding:12px 12px;border:1.5px solid #d5dbe0;border-radius:12px;outline:none}
   #q:focus{border-color:#03c75a}
-  #btnHome{background:#eef1f4 !important;color:#1d2329 !important;padding:0 12px !important;font-size:18px !important}
+  #btnHome,#btnCar{background:#eef1f4 !important;color:#1d2329 !important;padding:0 11px !important;font-size:18px !important;flex:none}
+  #btnCar{background:#e3ebff !important}
   #sf button{font-size:16px;font-weight:700;padding:0 16px;border:none;border-radius:12px;background:#03c75a;color:#fff}
   #mapWrap{position:relative;height:48vh;min-height:260px;flex:none}
   #map{width:100%;height:100%}
@@ -29,7 +30,6 @@
   .favOn{background:#fff4d6 !important;color:#7a5a00 !important}
   .linkBox{display:block;background:#fff7e0;border-radius:10px;padding:10px 11px;margin-top:9px;font-size:13.5px;color:#5c4500;line-height:1.45}
   .linkBox input{width:18px;height:18px;vertical-align:-3px}
-  .carBtn{position:absolute;left:8px;top:8px;z-index:2;font-size:14px;font-weight:800;padding:9px 12px;border:none;border-radius:12px;background:#1d2329;color:#fff;box-shadow:0 1px 4px rgba(0,0,0,.3)}
   .carCard{background:#f1f5ff;border-radius:14px;padding:12px 13px;margin:6px 0 4px}
   .carCard b{font-size:16px}
   .carCard .meta{font-size:13px;color:#56606a;margin-top:3px;line-height:1.5}
@@ -88,12 +88,11 @@
 <body>
 <div id="finder" hidden>
   <header>
-    <form id="sf"><button type="button" id="btnHome" aria-label="처음 화면">🏠</button><input id="q" type="search" placeholder="목적지 검색 (예: 광양읍 다이소)" autocomplete="off"><button type="submit">검색</button></form>
+    <form id="sf"><button type="button" id="btnHome" aria-label="처음 화면">🏠</button><button type="button" id="btnCar" aria-label="내 차">🚙</button><input id="q" type="search" placeholder="목적지 검색 (예: 광양읍 다이소)" autocomplete="off"><button type="submit">검색</button></form>
   </header>
   <div id="mapWrap">
     <div id="map"></div>
     <div class="mapBtns"><button type="button" id="btnType">일반지도</button><button type="button" id="btnRv">로드뷰</button></div>
-    <button type="button" class="carBtn" id="btnCar">🚙 내 차</button>
     <div class="hint" id="hint" hidden>차들이 서 있는 곳을 지도에서 톡 눌러 보세요</div>
   </div>
   <section id="sheet"></section>
