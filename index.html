@@ -492,7 +492,11 @@ function choose(s) {
           '<div class="walk">' + esc(dest.name) + '까지<br><b>' + walkText(m) + '</b></div>' +
           '<a class="btn main" id="pNav" href="' + esc(navLink(s.lat, s.lng, defName)) + '">네이버 지도 앱으로 길안내</a>' +
           '<button class="btn sub" id="pRv">🔭 이 자리 로드뷰 보기</button>';
-  if (s.kind === 'saved') h += '<button class="btn sub" id="pDel">저장한 자리에서 지우기</button>';
+  if (s.kind === 'saved') h += '<button class="btn sub" id="pEdit">✏️ 이름·메모 바꾸기</button>' +
+    '<div id="pEditBox" hidden><input class="nameIn" id="pReName" maxlength="30" placeholder="이름" value="' + esc(s.name) + '">' +
+    '<input class="nameIn" id="pReNote" maxlength="40" placeholder="메모" value="' + esc(s.note || '') + '">' +
+    '<button class="btn main" id="pEditOk">저장</button></div>' +
+    '<button class="btn sub" id="pDel">🗑️ 저장한 자리에서 지우기</button>';
   else h += '<input class="nameIn" id="pName" maxlength="30" value="' + esc(defName) + '"><button class="btn sub" id="pSave">⭐ 이 자리 저장</button>';
   h += '<button class="btn sub" id="pPark">🚙 여기 주차했어요</button>';
   h += '<button class="btn ghost" id="pBack">← 목록으로</button>';
@@ -511,9 +515,20 @@ function choose(s) {
       $('pSave').disabled = true; $('pSave').textContent = '저장됨 ⭐';
     } else toast('이 브라우저에서는 저장할 수 없어요');
   };
+  if ($('pEdit')) $('pEdit').onclick = function () { $('pEditBox').hidden = !$('pEditBox').hidden; if (!$('pEditBox').hidden) $('pReName').focus(); };
+  if ($('pEditOk')) $('pEditOk').onclick = function () {
+    var name = $('pReName').value.trim().slice(0, 30), note = $('pReNote').value.trim().slice(0, 40);
+    if (!name) { toast('이름을 입력해 주세요'); return; }
+    var a = loadSpots(), hit = false;
+    a.forEach(function (x) { if (x.id === s.id) { x.name = name; x.note = note; hit = true; } });
+    if (!hit || !saveSpots(a)) { toast('바꾸지 못했어요'); return; }
+    s.name = name; s.note = note; toast('바꿨어요 ✏️'); choose(s);
+  };
   if ($('pDel')) $('pDel').onclick = function () {
+    if (!this.dataset.armed) { this.dataset.armed = '1'; this.textContent = '한 번 더 누르면 지워요'; return; }
     saveSpots(loadSpots().filter(function (x) { return x.id !== s.id; }));
-    toast('지웠어요'); setDest(dest);
+    if (pickOverlay) { pickOverlay.setMap(null); pickOverlay = null; }
+    toast('지웠어요'); back();
   };
 }
 
@@ -633,6 +648,10 @@ function renderCarFound(c) {
           '<a class="btn main" style="background:#1d4ed8" href="' + esc(nmap('route/walk', 'dlat=' + c.lat + '&dlng=' + c.lng + '&dname=' + encodeURIComponent(c.name || '내 차'))) + '">🚶 네이버 지도로 걸어서 길안내</a>' +
           '<button class="btn sub" id="cFit">🗺️ 지도에서 내 차와 내 위치 보기</button>' +
           '<button class="btn sub" id="cRv">🔭 주차한 곳 로드뷰</button>' +
+          '<button class="btn sub" id="cEdit">✏️ 이름·메모 바꾸기</button>' +
+          '<div id="cEditBox" hidden><input class="nameIn" id="cReName" maxlength="30" placeholder="이름" value="' + esc(c.name || '') + '">' +
+          '<input class="nameIn" id="cReNote" maxlength="40" placeholder="메모" value="' + esc(c.note || '') + '">' +
+          '<button class="btn main" id="cEditOk">저장</button></div>' +
           '<button class="btn sub" id="cNew">📍 주차 위치 다시 저장</button>' +
           '<button class="btn sub" id="cClear">✅ 차 찾았어요 (기록 지우기)</button>' +
           '<button class="btn ghost" id="cBack">← 돌아가기</button>';
@@ -640,6 +659,12 @@ function renderCarFound(c) {
   $('cFit').onclick = function () { fitCarAndMe(c); };
   $('cRv').onclick = function () { openRv(c); };
   $('cNew').onclick = function () { renderCarNew(null); };
+  $('cEdit').onclick = function () { $('cEditBox').hidden = !$('cEditBox').hidden; };
+  $('cEditOk').onclick = function () {
+    c.name = $('cReName').value.trim().slice(0, 30) || '내 차';
+    c.note = $('cReNote').value.trim().slice(0, 40);
+    if (saveCar(c)) { toast('바꿨어요 ✏️'); renderCarFound(c); } else toast('바꾸지 못했어요');
+  };
   $('cBack').onclick = back;
   $('cClear').onclick = function () {
     if (this.dataset.armed) {
