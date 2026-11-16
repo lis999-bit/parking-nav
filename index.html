@@ -18,6 +18,7 @@
   #sf{display:flex;gap:6px}
   #q{flex:1;min-width:0;font-size:16px;padding:12px 12px;border:1.5px solid #d5dbe0;border-radius:12px;outline:none}
   #q:focus{border-color:#03c75a}
+  #btnHome{background:#eef1f4 !important;color:#1d2329 !important;padding:0 12px !important;font-size:18px !important}
   #sf button{font-size:16px;font-weight:700;padding:0 16px;border:none;border-radius:12px;background:#03c75a;color:#fff}
   #mapWrap{position:relative;height:48vh;min-height:260px;flex:none}
   #map{width:100%;height:100%}
@@ -87,7 +88,7 @@
 <body>
 <div id="finder" hidden>
   <header>
-    <form id="sf"><input id="q" type="search" placeholder="목적지 검색 (예: 광양읍 다이소)" autocomplete="off"><button type="submit">검색</button></form>
+    <form id="sf"><button type="button" id="btnHome" aria-label="처음 화면">🏠</button><input id="q" type="search" placeholder="목적지 검색 (예: 광양읍 다이소)" autocomplete="off"><button type="submit">검색</button></form>
   </header>
   <div id="mapWrap">
     <div id="map"></div>
@@ -213,9 +214,20 @@ function init() {
   $('btnType').onclick = toggleType;
   $('btnRv').onclick = function () { openRv(pick || dest || loadCar()); };
   $('btnCar').onclick = openCar;
+  $('btnHome').onclick = goHome;
   $('rvClose').onclick = function () { $('rvModal').hidden = true; };
   var last = params.get('q');
   if (last) { $('q').value = last; search(last); } else renderHome();
+}
+
+function goHome() {
+  stopWatch();
+  dest = null; pick = null; clearMap();
+  $('hint').hidden = true; $('q').value = '';
+  try { history.replaceState(null, '', location.pathname); } catch (e) {}
+  map.setMapTypeId(kakao.maps.MapTypeId.ROADMAP); $('btnType').textContent = '위성사진';
+  map.setLevel(5);
+  renderHome();
 }
 
 function renderHome() {
